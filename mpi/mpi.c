@@ -1,237 +1,225 @@
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include<sys/time.h>
+#include <mpi.h>
+#include <time.h>
+#include <assert.h>
 
-#define NUM_GEN 2000 // Numero de geracoes
-#define TAM 2048 // Tamanho N da matriz NxN
-#define c_viva 1
-#define c_morta 0
-#define PRINCIPAL 0
+#define DEFAULT 0
+#define ORDEM 2048      /* Ordem da matriz */
+#define QTD_GEN 2000    /* Quantidade de gerações */
+#define VIVA 1          /* Define a vida da celula de maneira booleana */
+#define MORTA 0         /* Define a morte da celula de maneira booleana */
 
-int **grid, **newgrid; // matrizes de geracao
-int bufSnd[TAM], bufRcv[TAM]; // Buffers de comunicacao
 
-/// Calculo de tempo
-typedef struct {
-    int secs;
-    int usecs;
-}Duracao;
+int** matriz, ** matrizAtu; /* Definição das matrizes */
+int bufferEnvio[ORDEM], bufferRecebimento[ORDEM]; /* Buffers para troca de informação */
 
-Duracao * tempo_decorrido (struct timeval *start, struct timeval *end){
-    Duracao *total = (Duracao*)malloc(sizeof(Duracao));
+/* Verifica quantos vizinhos vivos uma célula tem */
+int verificaVizinhosVivos(int i, int j) {
+    int quantidadeVivos = 0;
 
-    if(start->tv_sec == end->tv_sec){
-        total->secs = 0;
-        total->usecs = end->tv_usec - start->tv_usec;
-    }
-    else{
-        total->usecs = 1000000 - start->tv_usec;
-        total->secs = end->tv_sec - (start->tv_sec + 1);
-        total->usecs += end->tv_usec;
-        if(total->usecs >= 1000000){
-            total->usecs -= 1000000;
-            total->secs += 1;
-        }
-    }
-    return total;
+    quantidadeVivos += matriz[i][((j + 1) % ORDEM)];
+    quantidadeVivos += matriz[((i + 1) % ORDEM)][((j + 1) % ORDEM)];
+    quantidadeVivos += matriz[((i + 1) % ORDEM)][j];
+    quantidadeVivos += matriz[((i + 1) % ORDEM)][(ORDEM + (j - 1)) % ORDEM];
+    quantidadeVivos += matriz[i][(ORDEM + (j - 1)) % ORDEM];
+    quantidadeVivos += matriz[(ORDEM + (i - 1)) % ORDEM][(ORDEM + (j - 1)) % ORDEM];
+    quantidadeVivos += matriz[(ORDEM + (i - 1)) % ORDEM][j];
+    quantidadeVivos += matriz[(ORDEM + (i - 1)) % ORDEM][((j + 1) % ORDEM)];
+
+    return quantidadeVivos;
 }
 
-// Retorna a quantidade de vizinhos vivos de cada celula
-int getNeighbors(int i, int j) {
-    int num_vizinhos=0;
-
-    num_vizinhos += grid[i][((j+1)%TAM)];
-    num_vizinhos += grid[((i+1)%TAM)][((j+1)%TAM)];
-    num_vizinhos += grid[((i+1)%TAM)][j];
-    num_vizinhos += grid[((i+1)%TAM)][(TAM+(j-1))%TAM];
-    num_vizinhos += grid[i][(TAM+(j-1))%TAM];
-    num_vizinhos += grid[(TAM+(i-1))%TAM][(TAM+(j-1))%TAM];
-    num_vizinhos += grid[(TAM+(i-1))%TAM][j];
-    num_vizinhos += grid[(TAM+(i-1))%TAM][((j+1)%TAM)];
-
-    return num_vizinhos;
-}
-
-// Cria uma nova geracao de acordo com as regras estabelecidas
-void prox_rodada(int proc_atual, int rank){
+/* Configura e inicia a próxima geração */
+void proximaGeracao(int processo, int rank) {
     int i, j;
-    int limite = proc_atual*rank;
+    int limite = processo * rank;
 
-    for(i=limite;i<proc_atual*(rank+1); i++){
-        for(j = 0; j<TAM; j++){
-            if (grid[i][j] == 1){ //le celulas vivas
-                if (getNeighbors(i,j) < 2 || getNeighbors(i,j) > 3) // Regra 1
-                    newgrid[i][j] = c_morta;
-                else // Regra 3
-                    newgrid[i][j] = c_viva;
+    for (i = limite; i < processo * (rank + 1); i++) {
+        for (j = 0; j < ORDEM; j++) {
+            /* Aplicação das regras */
+            if (matriz[i][j] == 1) { /* Verifica as celulas vivas */
+                if (verificaVizinhosVivos(i, j) < 2 || verificaVizinhosVivos(i, j) > 3)
+                    matrizAtu[i][j] = MORTA;
+                else
+                    matrizAtu[i][j] = VIVA;
             }
-            else{ // le células mortas
-                if(getNeighbors(i,j) == 3) // Regra 2
-                    newgrid[i][j] = c_viva;
-                else // Regra 3
-                    newgrid[i][j] = c_morta;
+            else { /* Verifica as celulas mortas */
+                if (verificaVizinhosVivos(i, j) == 3)
+                    matrizAtu[i][j] = VIVA;
+                else
+                    matrizAtu[i][j] = MORTA;
             }
         }
     }
 
-    for(i=0;i<TAM; i++){
-        for(j = 0; j<TAM; j++){
-            grid[i][j] = newgrid[i][j];
+    for (i = 0; i < ORDEM; i++) {
+        for (j = 0; j < ORDEM; j++) {
+            matriz[i][j] = matrizAtu[i][j];
         }
     }
 }
 
-// Conta quantas celulas estao vivas na geracao
-int total_vivos(){
-    int i,j,numv = 0;
-        for(i=0;i<TAM; i++){
-            for(j = 0; j<TAM; j++){
-                if (grid[i][j])
-                    numv++;
-            }
+/* Verifica o total de células vivas no momento atual */
+int verificaTotalVivas() {
+    int i, j, qtdVivas = 0;
+    for (i = 0; i < ORDEM; i++) {
+        for (j = 0; j < ORDEM; j++) {
+            if (matriz[i][j])
+                qtdVivas++;
         }
-    return numv;
+    }
+    return qtdVivas;
 }
 
-// Rotina do processo principal
-void prinProc(int nproc){
-    int i,j,inicio,tag=0,div=0,rank,atual;
-    int proc_atual = TAM/nproc, lin, col;
-    Duracao *valor;
-    struct timeval start, end;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    gettimeofday (&start, NULL);
+/* Execução do processo primario */
+void processoPrimario(int qtdProc) {
+    int i, j, k, tag = 0, div = 0, rank, atual;
+    int processoAtu = ORDEM / qtdProc, linha, coluna;
 
-    // Alocacao das matrizes
-    grid = malloc(sizeof(int*)*TAM);
-    newgrid = malloc(sizeof(int*)*TAM);
-    for(i=0;i<TAM;i++){
-        grid[i] = malloc(sizeof(int)*TAM);
-        newgrid[i] = malloc(sizeof(int)*TAM);
+    clock_t begin = clock();
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    /* Separa a memoria para as matrizes */
+    matriz = malloc(sizeof(int*) * ORDEM);
+    matrizAtu = malloc(sizeof(int*) * ORDEM);
+
+    for (i = 0; i < ORDEM; i++) {
+        matriz[i] = malloc(sizeof(int) * ORDEM);
+        matrizAtu[i] = malloc(sizeof(int) * ORDEM);
     }
-    /// Definição dos pontos iniciais
-    for(i=0;i<(proc_atual); i++){
-        for(j = 0; j<TAM; j++){
-            grid[i][j] = 0;
+
+    /* Marca os pontos iniciais */
+    for (i = 0; i < (processoAtu); i++) {
+        for (j = 0; j < ORDEM; j++) {
+            matriz[i][j] = 0;
         }
     }
-  //GLIDER
-    lin = 1; col = 1;
-    grid[lin  ][col+1] = 1;
-    grid[lin+1][col+2] = 1;
-    grid[lin+2][col  ] = 1;
-    grid[lin+2][col+1] = 1;
-    grid[lin+2][col+2] = 1;
 
-    //R-pentomino
-    lin = 10; col = 30;
-    grid[lin  ][col+1] = 1;
-    grid[lin  ][col+2] = 1;
-    grid[lin+1][col  ] = 1;
-    grid[lin+1][col+1] = 1;
-    grid[lin+2][col+1] = 1;
+    /* GLIDER */
+    linha = 1; coluna = 1;
+    matriz[linha][coluna + 1] = 1;
+    matriz[linha + 1][coluna + 2] = 1;
+    matriz[linha + 2][coluna] = 1;
+    matriz[linha + 2][coluna + 1] = 1;
+    matriz[linha + 2][coluna + 2] = 1;
+
+    /* R-pentomino */
+    linha = 10; coluna = 30;
+    matriz[linha][coluna + 1] = 1;
+    matriz[linha][coluna + 2] = 1;
+    matriz[linha + 1][coluna] = 1;
+    matriz[linha + 1][coluna + 1] = 1;
+    matriz[linha + 2][coluna + 1] = 1;
 
     div = i;
-    for(inicio=1;inicio<nproc;inicio++){
-        for(i=div;i<(inicio+1)*proc_atual;i++){
-            MPI_Recv(bufRcv,TAM,MPI_INT,inicio,tag,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-            for(j=0;j<TAM;j++){
-                grid[i][j] = bufRcv[j];
+
+    for (k = 1; k < qtdProc; k++) {
+        for (i = div; i < (k + 1) * processoAtu; i++) {
+            MPI_Recv(bufferRecebimento, ORDEM, MPI_INT, k, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            for (j = 0; j < ORDEM; j++) {
+                matriz[i][j] = bufferRecebimento[j];
             }
         }
-        div=i;
+
+        div = i;
     }
 
-    printf("Condicao Inicial: %d\n", total_vivos());
+    printf("Condicao Inicial: %d\n", verificaTotalVivas());
 
-    // Gera NUM_GEN geracoes a partir da primeira
-    for(atual=0;atual<NUM_GEN;atual++){
-        for(i=0;i<TAM;i++){ // Envia tabela
-            for(j=0;j<TAM;j++) bufSnd[j] = grid[i][j];
+    /* Crias as proximas geracoes a partir da primeira  */
+    for (atual = 0; atual < QTD_GEN; atual++) {
+        for (i = 0; i < ORDEM; i++) { // Envia tabela
+            for (j = 0; j < ORDEM; j++) bufferEnvio[j] = matriz[i][j];
             MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Bcast(bufSnd,TAM,MPI_INT,PRINCIPAL,MPI_COMM_WORLD);
+            MPI_Bcast(bufferEnvio, ORDEM, MPI_INT, DEFAULT, MPI_COMM_WORLD);
             MPI_Barrier(MPI_COMM_WORLD);
         }
 
-        prox_rodada(proc_atual,rank);
+        proximaGeracao(processoAtu, rank);
 
-        for(inicio=1;inicio<nproc;inicio++){
-            for(i=(proc_atual*inicio);i<(proc_atual*(inicio+1));i++){
-                MPI_Recv(bufRcv,TAM,MPI_INT,inicio,tag,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                for(j=0;j<TAM;j++){
-                    grid[i][j] = bufRcv[j];
+        for (k = 1; k < qtdProc; k++) {
+            for (i = (processoAtu * k); i < (processoAtu * (k + 1)); i++) {
+                MPI_Recv(bufferRecebimento, ORDEM, MPI_INT, k, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                for (j = 0; j < ORDEM; j++) {
+                    matriz[i][j] = bufferRecebimento[j];
                 }
             }
         }
     }
 
-    printf("Ultima Geracao: %d\n", total_vivos());
+    printf("Ultima Geracao: %d\n", verificaTotalVivas());
+    clock_t end = clock();
 
-    gettimeofday (&end, NULL);
-    valor = tempo_decorrido(&start, &end);
-    printf("Tempo: %d,%d s\n",valor->secs,valor->usecs);
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+
+    printf("%lf\n", time_spent);
+
 }
 
-// Rotina do processo secundario
-void secProc(int nproc){
-    int tag=0,dest=0,i,j,atual,rank,proc_atual=TAM/nproc;
+/* Execução do processo secundario */
+void processoSecundario(int qtdProc) {
+    int tag = 0, dest = 0, i, j, atual, rank, processoAtu = ORDEM / qtdProc;
 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    // Alocacao das matrizes
-    grid = malloc(sizeof(int*)*TAM);
-    newgrid = malloc(sizeof(int*)*TAM);
-    for(i=0;i<TAM;i++){
-        grid[i] = malloc(sizeof(int)*TAM);
-        newgrid[i] = malloc(sizeof(int)*TAM);
+    /* Separa a memoria para as matrizes */
+    matriz = malloc(sizeof(int*) * ORDEM);
+    matrizAtu = malloc(sizeof(int*) * ORDEM);
+    for (i = 0; i < ORDEM; i++) {
+        matriz[i] = malloc(sizeof(int) * ORDEM);
+        matrizAtu[i] = malloc(sizeof(int) * ORDEM);
     }
 
-    // Gera a segunda metade da primeira geracao
-    for(i=0;i<TAM; i++){
-        for(j = 0; j<TAM; j++){
-            if(i >= rank*proc_atual && i < (rank+1)*proc_atual){
-                grid[i][j] = 0;
+    /* Marca a segunda parte na primeira geração */
+    for (i = 0; i < ORDEM; i++) {
+        for (j = 0; j < ORDEM; j++) {
+            if (i >= rank * processoAtu && i < (rank + 1) * processoAtu) {
+                matriz[i][j] = 0;
             }
         }
     }
 
-    for(i=rank*proc_atual;i<(rank+1)*proc_atual;i++){
-        for(j=0;j<TAM;j++) bufSnd[j] = grid[i][j];
-        MPI_Send(bufSnd,TAM,MPI_INT,dest,tag,MPI_COMM_WORLD);
+    for (i = rank * processoAtu; i < (rank + 1) * processoAtu; i++) {
+        for (j = 0; j < ORDEM; j++) bufferEnvio[j] = matriz[i][j];
+        MPI_Send(bufferEnvio, ORDEM, MPI_INT, dest, tag, MPI_COMM_WORLD);
     }
 
-    for(atual=0;atual<NUM_GEN;atual++){
-        for(i=0;i<TAM;i++){ // recebe a tabela
+    for (atual = 0; atual < QTD_GEN; atual++) {
+        for (i = 0; i < ORDEM; i++) {
             MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Bcast(bufRcv,TAM,MPI_INT,PRINCIPAL,MPI_COMM_WORLD);
+            MPI_Bcast(bufferRecebimento, ORDEM, MPI_INT, DEFAULT, MPI_COMM_WORLD);
             MPI_Barrier(MPI_COMM_WORLD);
-            for(j=0;j<TAM;j++) grid[i][j] = bufRcv[j];
+            for (j = 0; j < ORDEM; j++) matriz[i][j] = bufferRecebimento[j];
         }
 
-        prox_rodada(proc_atual,rank);
+        proximaGeracao(processoAtu, rank);
 
-        for(i=(proc_atual*rank);i<proc_atual*(rank+1);i++){ // envia tabela
-            for(j=0;j<TAM;j++) bufSnd[j] = grid[i][j];
-            MPI_Send(bufSnd,TAM,MPI_INT,dest,tag,MPI_COMM_WORLD);
+        for (i = (processoAtu * rank); i < processoAtu * (rank + 1); i++) {
+            for (j = 0; j < ORDEM; j++) bufferEnvio[j] = matriz[i][j];
+            MPI_Send(bufferEnvio, ORDEM, MPI_INT, dest, tag, MPI_COMM_WORLD);
         }
     }
 }
 
-int main(int argc, char *argv[]){
-    int rank; // ID do processo
-    int nproc; // numero de processos
+int main(int argc, char* argv[]) {
+    int rank;           /* ID do processo */
+    int qtdProcessos;   /* Quantidade de processos */
+
 
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+    MPI_Comm_size(MPI_COMM_WORLD, &qtdProcessos);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if(rank == 0){ // caso seja o processo principal
-        prinProc(nproc);
-    }else{
-        secProc(nproc);
+    if (rank == 0) {
+        processoPrimario(qtdProcessos);
+    }
+    else {
+        processoSecundario(qtdProcessos);
     }
 
     MPI_Finalize();
+
     return 0;
 }
