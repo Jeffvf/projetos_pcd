@@ -303,6 +303,8 @@ void vida(){
 }
 
 int main(){
+    Duracao *valor;
+    struct timeval start, end;
     inicializador();
     relacoes_paises();
     graus();
