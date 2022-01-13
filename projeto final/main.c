@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include<sys/time.h>
 #define tamanho 700
-double ideal = 4000;
+double ideal = 100000;
 #define numeropaises 5
 #define taxacrescimento 100
 
@@ -12,6 +13,32 @@ double porcentagens_paises, probabilidade_de_desastre_natural;
 double decrementador_desastre, cont_esqucimento = 0, numero_pessoas;
 double *paises;
 double cont_mudanca, incrementador, porcentagem_real;
+
+/// Calculo de tempo
+typedef struct {
+    int secs;
+    int usecs;
+}Duracao;
+//função utilizada a partir da leitura do site:
+//https://qastack.com.br/programming/5248915/execution-time-of-c-program
+Duracao * tempo_decorrido (struct timeval *start, struct timeval *end){
+    Duracao *total = (Duracao*)malloc(sizeof(Duracao));
+
+    if(start->tv_sec == end->tv_sec){
+        total->secs = 0;
+        total->usecs = end->tv_usec - start->tv_usec;
+    }
+    else{
+        total->usecs = 1000000 - start->tv_usec;
+        total->secs = end->tv_sec - (start->tv_sec + 1);
+        total->usecs += end->tv_usec;
+        if(total->usecs >= 1000000){
+            total->usecs -= 1000000;
+            total->secs += 1;
+        }
+    }
+    return total;
+}
 
 int aleatorio(int n){
     return rand()%n;
@@ -281,6 +308,9 @@ int main(){
     graus();
     printf("se voce deseja que o programa funcione com desastres naturais ativo, digite 1, senao digite outro valor qualquer.");
     scanf("%d", &desastre);
+     gettimeofday (&start, NULL);
     vida();
+    gettimeofday (&end, NULL);
+     printf("Tempo: %d,%d s\n",valor->secs,valor->usecs);
     return 0;
 }
