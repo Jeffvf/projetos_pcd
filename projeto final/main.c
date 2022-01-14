@@ -313,6 +313,7 @@ int main(){
      gettimeofday (&start, NULL);
     vida();
     gettimeofday (&end, NULL);
+    valor = tempo_decorrido(&start, &end);
      printf("Tempo: %d,%d s\n",valor->secs,valor->usecs);
     return 0;
 }
