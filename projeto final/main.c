@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include<sys/time.h>
 #define tamanho 700
-double ideal = 100000;
+double ideal = 4000;
 #define numeropaises 5
 #define taxacrescimento 100
 
