@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include<sys/time.h>
 #include<omp.h> 
+
 #define tamanho 700
 double ideal = 4000;
 #define numeropaises 5
 #define taxacrescimento 100
+#define MAX_THREADS 8
 
 int tempo, cont_grau, decrementador = 0;
 int *familias, **relacoes;
