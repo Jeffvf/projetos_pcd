@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include<sys/time.h>
+#include<omp.h> 
 #define tamanho 700
 double ideal = 4000;
 #define numeropaises 5
@@ -51,7 +52,8 @@ void inicializador(){
         for(i = 0; i < tamanho; i++){
             relacoes[i] = malloc(sizeof(int*)*tamanho);
         }
-        
+    #pragma omp parallel private(i) num_threads(MAX_THREADS)
+    #pragma omp for
         for(i = 0; i < tamanho; i++){
             for(j = 0; j < tamanho; j++){///esta matriz define as relações entre diferentes familias do pais
                 relacoes[i][j] = 0;
