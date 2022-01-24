@@ -216,6 +216,8 @@ void vida(){
         ///teste de incremento e decremento
                 ///se o rand for aceito --> ocorre o incremento ou decremento
                     ///taxacrescimento eh o numero maximo de pessoas que a população pode aumentar
+                    #pragma omp parallel private(i) num_threads(MAX_THREADS)
+                    #pragma omp for
                     for(i = 0; i < tamanho; i++){
                             p = 1;
                             cont_mudanca = 0;
@@ -257,6 +259,8 @@ void vida(){
 
                 ///aqui faz a atualização do numero total de pessoas na sociedade
                 numero_pessoas = 0;
+                #pragma omp parallel private(i) \ reduction (+: numero_pessoas) num_threads(MAX_THREADS)
+                #pragma omp for
                 for(i = 0; i < tamanho; i++){
                     numero_pessoas = familias[i] + numero_pessoas;
                 }
@@ -294,7 +298,9 @@ void vida(){
                 printf("\n\n\n\n\n atualmente existem %d neste pais\n", (int)numero_pessoas);
                 ///população gigante leva a falta de comida --> lutas por comidas -> leva a guerra --> diminuição da população
                 numero_pessoas = 0;
-                     for(i = 0; i < tamanho; i++){
+                    #pragma omp parallel private(i) \ reduction (+: numero_pessoas) num_threads(MAX_THREADS)
+                    #pragma omp for                     
+                    for(i = 0; i < tamanho; i++){
                         familias[i] = familias[i]*0.1;
                         if(familias[i] < 1) familias[i] = 1;
                         numero_pessoas = familias[i] + numero_pessoas;
