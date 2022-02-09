@@ -159,7 +159,7 @@ void graus(){
 
 void vida(){
   int i, j, k, l;
-        for(tempo = 0; tempo < 100000; tempo++){
+        for(tempo = 0; tempo < 10000; tempo++){
                 porcentagem_real = (double)(ideal/numero_pessoas);
                 nascidos = taxacrescimento;
                 ///aqui confere se a população ainda lembra do desastre --> se esqueceu cont_esqucimento = 0 ->decrementador_desastre = 0
