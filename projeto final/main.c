@@ -7,7 +7,7 @@
 double ideal = 4000;
 #define numeropaises 5
 #define taxacrescimento 100
-#define MAX_THREADS 6
+#define MAX_THREADS 2
 
 int tempo, cont_grau, decrementador = 0;
 int *familias, **relacoes;
@@ -294,9 +294,9 @@ void vida()
                         familias[l] = familias[l] * (1 - decrementador_desastre / 10); /// aqui a população diminui de tamanho--> pessoas morrem
                 }
                 cont_esqucimento = (decrementador_desastre)*15; /// aqui define o tempo que a população se lembrara deste desastre
-                printf("\n ocorreu um desastre de nivel %f no ano %d\n", decrementador_desastre, tempo);
+                printf("\n- Ocorreu um desastre de nivel %f no ano %d\n", decrementador_desastre, tempo);
                 if (decrementador_desastre == 9)
-                    printf("\n  a humanidade chegou perto do apocalipse no ano %d\n", tempo);
+                    printf("\n-- A humanidade chegou perto do apocalipse no ano %d\n", tempo);
             }
         }
 
@@ -308,8 +308,8 @@ void vida()
             /// teste de incremento e decremento
             /// se o rand for aceito --> ocorre o incremento ou decremento
             /// taxacrescimento eh o numero maximo de pessoas que a população pode aumentar
-        #pragma omp parallel private(i) num_threads(MAX_THREADS)
-        #pragma omp for
+
+        #pragma omp parallel for private(i) reduction(+: cont_mudanca) num_threads(MAX_THREADS)
         for (i = 0; i < tamanho; i++)
         {
             p = 1;
@@ -359,8 +359,8 @@ void vida()
 
         /// aqui faz a atualização do numero total de pessoas na sociedade
         numero_pessoas = 0;
-        #pragma omp parallel private(i) num_threads(MAX_THREADS)
-        #pragma omp for
+
+        #pragma omp parallel for private(i) reduction(+: numero_pessoas) num_threads(MAX_THREADS)
         for (i = 0; i < tamanho; i++)
         {
             numero_pessoas = familias[i] + numero_pessoas;
@@ -404,11 +404,10 @@ void vida()
         /// teste final: mesmo com os decrementadores, ocorre super população --> aqui eh um easter egg
         if ((1 / porcentagem_real) > 3)
         {
-            printf("\n\n\n\n\n atualmente existem %d neste pais\n", (int)numero_pessoas);
+            //printf("\n\n\n\n\n atualmente existem %d neste pais\n", (int)numero_pessoas);
             /// população gigante leva a falta de comida --> lutas por comidas -> leva a guerra --> diminuição da população
             numero_pessoas = 0;
-            #pragma omp parallel private(i) num_threads(MAX_THREADS)
-            #pragma omp for
+            #pragma omp parallel for private(i) reduction(+: numero_pessoas) num_threads(MAX_THREADS)
             for (i = 0; i < tamanho; i++)
             {
                 familias[i] = familias[i] * 0.1;
@@ -417,8 +416,8 @@ void vida()
                 numero_pessoas = familias[i] + numero_pessoas;
             }
             /// esta frase foi colocada como uma analogia ao que acontece
-            printf("\n thanos roared his finger to this country \n"); /// Thanos eh o vilao principal do ultimo filme de vingadores
-            printf("\n\n\n\n\n atualmente existem %d neste pais\n", (int)numero_pessoas);
+            //printf("\n thanos roared his finger to this country \n"); /// Thanos eh o vilao principal do ultimo filme de vingadores
+            //printf("\n\n\n\n\n atualmente existem %d neste pais\n", (int)numero_pessoas);
         }
     }
 }
@@ -429,26 +428,15 @@ int main()
     Duracao *valor;
     struct timeval start, end;
 
-    gettimeofday(&start, NULL);
     inicializador();
-    gettimeofday(&end, NULL);
     valor = tempo_decorrido(&start, &end);
-    // total += valor;
-    printf("\nTempo para inicializar: %d,%d s\n", valor->secs, valor->usecs);
 
-    gettimeofday(&start, NULL);
+
     relacoes_paises();
-    gettimeofday(&end, NULL);
     valor = tempo_decorrido(&start, &end);
-    // total += valor;
-    printf("\nTempo para definir relacoes entre paises: %d,%d s\n", valor->secs, valor->usecs);
 
-    gettimeofday(&start, NULL);
     graus();
-    gettimeofday(&end, NULL);
     valor = tempo_decorrido(&start, &end);
-    // total += valor;
-    printf("\nTempo para definir relacoes entre familias: %d,%d s\n", valor->secs, valor->usecs);
 
     printf("\nSe voce deseja que o programa funcione com desastres naturais ativos, digite 1, senao digite outro valor qualquer:\n");
     scanf("%d", &desastre);
@@ -457,7 +445,6 @@ int main()
     vida();
     gettimeofday(&end, NULL);
     valor = tempo_decorrido(&start, &end);
-    // total += valor;
     printf("\nTempo para calcular a populacao final: %d,%d s\n", valor->secs, valor->usecs);
 
     // printf("Tempo total de execucao: %d,%d s\n",total->secs,total->usecs);
