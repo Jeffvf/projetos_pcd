@@ -309,11 +309,12 @@ void vida()
             /// se o rand for aceito --> ocorre o incremento ou decremento
             /// taxacrescimento eh o numero maximo de pessoas que a população pode aumentar
 
-        #pragma omp parallel for private(i) reduction(+: cont_mudanca) num_threads(MAX_THREADS)
+        //#pragma omp parallel for private(i) reduction(+: cont_mudanca) num_threads(MAX_THREADS)
         for (i = 0; i < tamanho; i++)
         {
             p = 1;
             cont_mudanca = 0;
+            #pragma omp parallel for reduction(+: cont_mudanca) num_threads(MAX_THREADS)
             for (l = 0; l < tamanho; l++)
             {
                 cont_mudanca = cont_mudanca + ((double)relacoes[i][l]) / 100; /// transforma a matriz em porcentagem
@@ -407,6 +408,7 @@ void vida()
             //printf("\n\n\n\n\n atualmente existem %d neste pais\n", (int)numero_pessoas);
             /// população gigante leva a falta de comida --> lutas por comidas -> leva a guerra --> diminuição da população
             numero_pessoas = 0;
+
             #pragma omp parallel for private(i) reduction(+: numero_pessoas) num_threads(MAX_THREADS)
             for (i = 0; i < tamanho; i++)
             {
