@@ -350,6 +350,7 @@ void vida()
                 if (tt == 1)
                 {
                     familias[i]--;
+                    if(familias[i] < 0) familias[i] = 0;
                     decrementador--;
                 }
             }
@@ -359,6 +360,7 @@ void vida()
         while (decrementador > 0)
         {
             familias[i]--;
+             if(familias[i] < 0) familias[i] = 0;
             i++;
             decrementador--;
         }
