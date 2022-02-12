@@ -7,7 +7,7 @@
 double ideal = 4000;
 #define numeropaises 5
 #define taxacrescimento 100
-#define MAX_THREADS 2
+#define MAX_THREADS 4
 
 int tempo, cont_grau, decrementador = 0;
 int *familias, **relacoes;
@@ -219,7 +219,8 @@ void graus()
 void vida()
 {
     int i, j, k, l;
-    #pragma omp parallel for num_threads(MAX_THREADS)
+
+    //#pragma omp parallel for num_threads(MAX_THREADS)
     for (tempo = 0; tempo < 100000; tempo++)
     {
         porcentagem_real = (double)(ideal / numero_pessoas);
@@ -350,7 +351,9 @@ void vida()
                 if (tt == 1)
                 {
                     familias[i]--;
-                    if(familias[i] < 0) familias[i] = 0;
+                    if(familias[i] < 0){
+                      familias[i] = 0;
+                    }
                     decrementador--;
                 }
             }
@@ -360,7 +363,6 @@ void vida()
         while (decrementador > 0)
         {
             familias[i]--;
-             if(familias[i] < 0) familias[i] = 0;
             i++;
             decrementador--;
         }
