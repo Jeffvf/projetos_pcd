@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <omp.h>
+#include <time.h>
 
 #define tamanho 700
 double ideal = 4000;
@@ -16,6 +17,7 @@ double porcentagens_paises, probabilidade_de_desastre_natural;
 double decrementador_desastre, cont_esqucimento = 0, numero_pessoas;
 double *paises;
 double cont_mudanca, incrementador, porcentagem_real;
+
 
 // Calculo de tempo
 typedef struct
@@ -436,7 +438,7 @@ int main()
 {
     Duracao *valor;
     struct timeval start, end;
-
+    srand(time(NULL));
     inicializador();
     valor = tempo_decorrido(&start, &end);
 
